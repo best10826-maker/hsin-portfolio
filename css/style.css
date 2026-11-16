@@ -311,7 +311,7 @@ form.ask input:focus, form.ask select:focus, form.ask textarea:focus { outline: 
 
 /* ---------- 手機首屏：滿版、往下滑提示、內容像一張紙蓋上來 ---------- */
 @media (max-width: 760px) {
-  .hero:not(.land) { position: sticky; top: 0; z-index: 0; height: 100vh; height: 100svh; aspect-ratio: auto; }
+  .hero:not(.land) { position: sticky; top: 0; z-index: 0; height: 100vh; height: 100svh; min-height: 460px; aspect-ratio: auto; }
   /* 後面的內容疊在首屏上方往上推，首屏留在原地慢慢變暗 */
   .hero:not(.land) ~ main, .hero:not(.land) ~ .inquiry, .hero:not(.land) ~ .site-foot { position: relative; z-index: 1; }
   .hero:not(.land) ~ main { background: var(--paper); padding-top: 1px; padding-bottom: clamp(80px, 13vw, 190px); box-shadow: 0 -24px 48px rgba(20, 18, 16, .22); }
