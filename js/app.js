@@ -44,7 +44,9 @@
     });
     return out;
   }
+  var CONTACT_BASE = JSON.parse(JSON.stringify(CONTACT)); // data.js 原本的值，試算表沒填的項目回到這裡
   function applySheet(d) {
+    for (var b in CONTACT_BASE) CONTACT[b] = CONTACT_BASE[b];
     for (var k in d.contact) CONTACT[k] = d.contact[k];
     ORDER.forEach(function (c) { if (CATS[c].video) VIDEOS[c] = d.videos[c] || []; });
   }

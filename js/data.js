@@ -6,7 +6,7 @@
 window.SITE = {
   // 內容試算表：Google 試算表的網址（要設成「知道連結的任何人都能檢視」）
   // 試算表裡填的聯絡資訊與影片連結，會蓋過下面 CONTACT、VIDEOS 的內容
-  sheet: '',
+  sheet: 'https://docs.google.com/spreadsheets/d/1dZpRNzxxDMMGl9t6C8iEqpbhZIGwUpJ4jY4z8QOfjyA/edit',
   // 詢問表單：Web3Forms 的 Access Key，或 Formspree 的表單網址（https://formspree.io/f/...）
   form: ''
 };

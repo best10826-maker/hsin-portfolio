@@ -1,0 +1,9 @@
+# Cloudflare Pages 回應標頭（GitHub Pages 會忽略這個檔案）
+
+# 照片：瀏覽器快取 30 天，回訪不用重新下載
+/img/*
+  Cache-Control: public, max-age=2592000
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
