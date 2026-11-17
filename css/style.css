@@ -184,6 +184,9 @@ form.ask input:focus, form.ask select:focus, form.ask textarea:focus { outline: 
 }
 .btn:hover { background: transparent; color: var(--ink); }
 .form-note { font-size: 11px; color: var(--muted); align-self: center; }
+.form-note.err { color: #a3402f; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.ask .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .sent { display: none; padding: 26px 0; }
 .sent.on { display: block; }
 

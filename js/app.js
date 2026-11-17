@@ -1,6 +1,58 @@
 (function () {
-  var CATS = window.CATS, ORDER = window.CAT_ORDER, CONTACT = window.CONTACT || {};
+  var CATS = window.CATS, ORDER = window.CAT_ORDER, SITE = window.SITE || {};
+  var CONTACT = window.CONTACT = window.CONTACT || {}, VIDEOS = window.VIDEOS = window.VIDEOS || {};
   var page = document.body.dataset.page || '';
+
+  // ---------- 內容試算表：聯絡資訊與影片連結 ----------
+  // 試算表三欄：區塊｜名稱｜內容。區塊填「聯絡」或分類名稱（例：婚禮紀實）
+  var SHEET_CACHE = 'hsin-sheet';
+  var CONTACT_KEYS = { 'email': 'email', 'e-mail': 'email', '信箱': 'email', '電子郵件': 'email', 'line': 'line',
+    'instagram': 'instagram', 'ig': 'instagram', '電話': 'phone', '手機': 'phone', 'phone': 'phone' };
+  function sheetCsvUrl(u) {
+    u = String(u || '').trim();
+    var gid = (u.match(/[#&?]gid=(\d+)/) || [])[1];
+    var pub = u.match(/^(https:\/\/docs\.google\.com\/spreadsheets\/d\/e\/[\w-]+)\//);
+    if (pub) return pub[1] + '/pub?output=csv' + (gid ? '&gid=' + gid : '');
+    var id = (u.match(/docs\.google\.com\/spreadsheets\/d\/([\w-]+)/) || [])[1];
+    if (id) return 'https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv' + (gid ? '&gid=' + gid : '');
+    return u; // 其他網址（例如本機的 CSV 檔）直接讀
+  }
+  function parseCsv(t) {
+    var rows = [], row = [], f = '', q = false;
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (q) {
+        if (c === '"') { if (t[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(f); f = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && t[i + 1] === '\n') i++;
+        row.push(f); rows.push(row); row = []; f = '';
+      } else f += c;
+    }
+    if (f || row.length) { row.push(f); rows.push(row); }
+    return rows;
+  }
+  function readSheet(rows) {
+    var out = { contact: {}, videos: {} }, cats = {};
+    ORDER.forEach(function (k) { cats[CATS[k].title] = k; cats[k] = k; });
+    rows.forEach(function (r) {
+      var a = (r[0] || '').trim(), b = (r[1] || '').trim(), c = (r[2] || '').trim(), k;
+      if (!a || !c) return;
+      if (a === '聯絡') { k = CONTACT_KEYS[b.toLowerCase()]; if (k) out.contact[k] = c; }
+      else if ((k = cats[a]) && CATS[k].video && ytId(c)) (out.videos[k] = out.videos[k] || []).push({ title: b, url: c });
+    });
+    return out;
+  }
+  function applySheet(d) {
+    for (var k in d.contact) CONTACT[k] = d.contact[k];
+    ORDER.forEach(function (c) { if (CATS[c].video) VIDEOS[c] = d.videos[c] || []; });
+  }
+  // 先用上次讀到的內容，畫面不會閃一下「待補」；稍後再跟試算表同步
+  var sheetSrc = sheetCsvUrl(SITE.sheet), sheetCached = '';
+  if (sheetSrc) {
+    try { sheetCached = localStorage.getItem(SHEET_CACHE) || ''; if (sheetCached) applySheet(JSON.parse(sheetCached)); } catch (e) { sheetCached = ''; }
+  }
   var CONTACT_HREF = page === 'home' ? '#inquiry' : 'index.html#inquiry';
 
   // "meifu:20" 或 "bridal:4" → 指定尺寸的圖片網址
@@ -65,7 +117,9 @@
       return '<dt>' + r[0] + '</dt><dd>' + v + '</dd>';
     }).join('') + '</dl>';
   }
-  document.querySelectorAll('[data-contact-list]').forEach(function (el) { el.innerHTML = contactList(); });
+  function renderContacts() {
+    document.querySelectorAll('[data-contact-list]').forEach(function (el) { el.innerHTML = contactList(); });
+  }
 
   // 首頁以外：頁尾前插入聯絡區
   if (page !== 'home') {
@@ -76,10 +130,11 @@
       '<h2 class="h2">聊聊你的拍攝</h2>' +
       '<p>告訴我日期、地點與想拍的內容，我會回覆檔期與方案。</p>' +
       '<a class="btn-line" href="' + CONTACT_HREF + '">聯絡 Hsin</a></div>' +
-      '<div class="rv" style="--d:.12s">' + contactList() + '</div></div>';
+      '<div class="rv" style="--d:.12s" data-contact-list></div></div>';
     var foot = document.querySelector('.site-foot');
     foot.parentNode.insertBefore(c, foot);
   }
+  renderContacts();
 
   // ---------- 分類頁：自動排出錯位版面 ----------
   // 每個樣式吃 1～2 張；L/P 分別是橫幅、直幅照片的 [桌機欄位, 手機欄位]
@@ -112,7 +167,7 @@
   function films(list) {
     if (!list.length) {
       return '<div class="films"><div class="film empty rv"><div class="film-frame"><span>影片連結待補</span></div>' +
-        '<div class="work-cap"><span>YouTube 連結貼入 js/data.js 後會顯示在這裡</span></div></div>' +
+        '<div class="work-cap"><span>' + (sheetSrc ? '影片連結填入內容試算表後會顯示在這裡' : 'YouTube 連結貼入 js/data.js 後會顯示在這裡') + '</span></div></div>' +
         '<div class="film empty rv" style="--d:.12s"><div class="film-frame"><span>影片連結待補</span></div></div></div>';
     }
     return '<div class="films">' + list.map(function (v, i) {
@@ -138,7 +193,7 @@
         (al.case ? '看完整案例' : '看完整相簿') + '</a></div>';
     });
     h += '</div>';
-    if (cat.video) h += '<div class="pane" data-pane="film">' + films((window.VIDEOS || {})[page] || []) + '</div>';
+    if (cat.video) h += '<div class="pane" data-pane="film">' + films(VIDEOS[page] || []) + '</div>';
     catRoot.innerHTML = h;
 
     function showTab(name) {
@@ -237,13 +292,64 @@
   window.addEventListener('resize', onScroll);
   onScroll();
 
-  // ---------- 詢問表單（原型：不送出資料，只顯示確認訊息） ----------
+  // ---------- 從試算表同步聯絡資訊與影片 ----------
+  if (sheetSrc && window.fetch) {
+    fetch(sheetSrc, { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (t) {
+        var json = JSON.stringify(readSheet(parseCsv(t)));
+        try { localStorage.setItem(SHEET_CACHE, json); } catch (e) {}
+        if (json === sheetCached) return;
+        applySheet(JSON.parse(json));
+        renderContacts();
+        var fp = cat && cat.video && catRoot && catRoot.querySelector('[data-pane="film"]');
+        if (fp) {
+          fp.innerHTML = films(VIDEOS[page] || []);
+          fp.querySelectorAll('.rv').forEach(function (el) { el.classList.add('in'); });
+        }
+      })
+      .catch(function () { /* 讀不到試算表就沿用原本內容 */ });
+  }
+
+  // ---------- 詢問表單：設定了收信服務就真的寄出，否則維持原型示意 ----------
   var form = document.querySelector('form.ask');
   if (form) {
+    var FORM = String(SITE.form || '').trim();
+    var note = form.querySelector('.form-note'), sent = document.querySelector('.sent');
+    var LABELS = { name: '稱呼', contact: '聯絡方式', type: '拍攝類型', date: '日期', msg: '地點與想說的話' };
+    if (FORM) {
+      note.textContent = '';
+      sent.querySelector('p').textContent = '我會盡快回覆你檔期與方案。';
+    }
+    var done = function () { form.style.display = 'none'; sent.classList.add('on'); };
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      form.style.display = 'none';
-      document.querySelector('.sent').classList.add('on');
+      if (!FORM) { done(); return; }
+      var raw = {}, d = {};
+      new FormData(form).forEach(function (v, k) { raw[k] = String(v).trim(); });
+      if (raw._gotcha) { done(); return; } // 機器人填了隱藏欄位：假裝成功、不寄出
+      for (var k in LABELS) d[LABELS[k]] = raw[k] || '（未填）';
+      var subject = '作品集網站詢問：' + raw.type + '｜' + raw.name;
+      if (/^\S+@\S+\.\S+$/.test(raw.contact)) d.email = raw.contact; // 對方留 Email 時，可直接按回覆
+      var isUrl = /^https?:\/\//.test(FORM);
+      if (isUrl) d._subject = subject;
+      else { d.access_key = FORM; d.subject = subject; d.from_name = 'Hsin Photography 網站'; }
+      var btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = '送出中…';
+      note.textContent = ''; note.classList.remove('err');
+      fetch(isUrl ? FORM : 'https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(d)
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok || j.success === false || j.ok === false) throw new Error(j.message || r.status);
+        });
+      }).then(done, function () {
+        btn.disabled = false; btn.textContent = '送出';
+        note.textContent = '沒有送出成功，請稍後再試，或直接用這裡列出的聯絡方式找我。';
+        note.classList.add('err');
+      });
     });
   }
 
